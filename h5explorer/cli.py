@@ -142,18 +142,7 @@ def datasets(filepath, top, sort_by):
     """데이터셋 정보 테이블 출력"""
     try:
         explorer = H5Explorer(filepath)
-
-        if sort_by == "size":
-            explorer.show_datasets_table(top_n=top)
-        else:
-            datasets_df = explorer.get_datasets_info()
-            if sort_by == "name":
-                datasets_df = datasets_df.sort_values("name").head(top)
-            elif sort_by == "elements":
-                datasets_df = datasets_df.nlargest(top, "elements")
-
-            # 테이블 직접 출력 (show_datasets_table 메서드 수정 필요)
-            explorer.show_datasets_table()
+        explorer.show_datasets_table(top_n=top, sort_by=sort_by)
 
     except Exception as e:
         click.echo(f"❌ 오류: {e}", err=True)

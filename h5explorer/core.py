@@ -292,12 +292,17 @@ class H5Explorer:
                 Panel(largest_info, title="Largest Dataset", border_style="yellow")
             )
 
-    def show_datasets_table(self, top_n: int | None = None):
-        """데이터셋 정보를 테이블로 출력"""
+    def show_datasets_table(self, top_n: int | None = None, sort_by: str = "size"):
+        """데이터셋 정보를 테이블로 출력 (sort_by: size, name, elements)"""
         datasets_df = self.get_datasets_info()
 
+        if sort_by == "name":
+            datasets_df = datasets_df.sort_values("path")
+        else:
+            column = {"size": "size_mb", "elements": "elements"}[sort_by]
+            datasets_df = datasets_df.sort_values(column, ascending=False)
         if top_n:
-            datasets_df = datasets_df.nlargest(top_n, "size_mb")
+            datasets_df = datasets_df.head(top_n)
 
         table = Table(title="Datasets Information", box=box.ROUNDED)
         table.add_column("Path", style="cyan")
