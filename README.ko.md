@@ -20,7 +20,7 @@ cd h5explorer
 
 <!-- test unix -->
 ```sh
-uv venv
+uv venv --python 3.13
 uv pip install .
 .venv/bin/python -c "import h5py; f = h5py.File('sample.h5', 'w'); f.create_group('raw').create_dataset('temperature', data=[[1.0, 2.0, 3.0]]); f.close()"
 .venv/bin/h5tree sample.h5
@@ -29,7 +29,7 @@ uv pip install .
 
 <!-- test windows -->
 ```powershell
-uv venv
+uv venv --python 3.13
 uv pip install .
 .venv\Scripts\python -c "import h5py; f = h5py.File('sample.h5', 'w'); f.create_group('raw').create_dataset('temperature', data=[[1.0, 2.0, 3.0]]); f.close()"
 .venv\Scripts\h5tree sample.h5
