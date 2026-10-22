@@ -48,6 +48,7 @@ h5explore explore data.h5 --summary       # 요약만
 h5explore explore data.h5 --max-depth 2   # 깊이 제한
 h5explore explore data.h5 --no-attrs      # 속성 숨기기
 h5explore datasets data.h5 --top 20       # 큰 데이터셋 표
+h5explore dump data.h5                    # 모든 그룹·데이터셋·속성을 한 줄씩 평문으로 (루트 포함)
 h5explore export data.h5 --output analysis.xlsx                  # Excel (기본값)
 h5explore export data.h5 --format json --output structure.json   # JSON
 h5explore batch ./files --output-dir ./reports --recursive       # 폴더의 HDF5 파일 전부 리포트
