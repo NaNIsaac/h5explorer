@@ -35,7 +35,8 @@ h5tree = "h5explorer.cli:explore"
 h5info = "h5explorer.cli:datasets"
 
 [dependency-groups]
-dev = ["pytest>=8"]
+# hdf5plugin only writes the plugin-compressed test files; reading metadata needs no filter.
+dev = ["pytest>=8", "hdf5plugin>=5"]
 
 [build-system]
 requires = ["hatchling>=1.27"]
