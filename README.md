@@ -82,5 +82,12 @@ h5explorer/
   core.py     H5Explorer: scan, DataFrames, Rich output, export
   cli.py      Click commands, H5Batch and helper functions
 tests/        pytest
-setup.py
+pyproject.toml
+```
+
+## Tests
+
+<!-- test -->
+```sh
+uv run --group dev pytest
 ```

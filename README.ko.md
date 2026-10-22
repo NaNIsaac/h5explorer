@@ -82,5 +82,12 @@ h5explorer/
   core.py     H5Explorer: 스캔, DataFrame, Rich 출력, 내보내기
   cli.py      Click 명령, H5Batch, 보조 함수
 tests/        pytest
-setup.py
+pyproject.toml
+```
+
+## 테스트
+
+<!-- test -->
+```sh
+uv run --group dev pytest
 ```
