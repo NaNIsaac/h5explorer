@@ -16,6 +16,13 @@ from rich.panel import Panel
 from rich import box
 
 
+def _excel_cell(value: Any) -> Any:
+    """Excel 셀에 쓸 수 없는 tuple, list, dict, ndarray는 문자열로 바꿈"""
+    if isinstance(value, tuple | list | dict | np.ndarray):
+        return str(value)
+    return value
+
+
 class H5Explorer:
     """HDF5 파일 탐색 및 메타데이터 추출 클래스"""
 
@@ -315,6 +322,20 @@ class H5Explorer:
             )
 
         self.console.print(table)
+
+    def export_to_excel(self, output_path: str | Path):
+        """요약, 데이터셋, 그룹, 속성 정보를 시트별로 Excel에 저장"""
+        sheets = {
+            "Summary": pd.DataFrame(
+                self.get_file_summary().items(), columns=["key", "value"]
+            ),
+            "Datasets": self.get_datasets_info(),
+            "Groups": self.get_groups_info(),
+            "Attributes": self.get_attributes_info(),
+        }
+        with pd.ExcelWriter(output_path) as writer:
+            for name, df in sheets.items():
+                df.map(_excel_cell).to_excel(writer, sheet_name=name, index=False)
 
     def export_structure_json(self, output_path: str):
         """구조 정보를 JSON으로 내보내기"""
