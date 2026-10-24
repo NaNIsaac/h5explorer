@@ -154,6 +154,19 @@ def datasets(filepath, top, sort_by):
 
 @cli.command()
 @click.argument("filepath", type=click.Path(exists=True))
+def dump(filepath):
+    """모든 그룹·데이터셋과 속성을 한 줄씩 평문으로 출력 (루트 속성 포함)"""
+    try:
+        for line in H5Explorer(filepath).dump_lines():
+            click.echo(line)
+
+    except Exception as e:
+        click.echo(f"오류: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("filepath", type=click.Path(exists=True))
 @click.option("--output", "-o", required=True, help="출력 파일 경로")
 @click.option(
     "--format",

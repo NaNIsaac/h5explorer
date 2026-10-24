@@ -6,6 +6,8 @@ Explore the structure and metadata of HDF5 files from Python or the command line
 
 It reads an HDF5 file with h5py and gives you the groups, datasets and attributes as pandas DataFrames,
 prints them as a tree and tables with Rich, and exports them to Excel or JSON.
+Only metadata is read, so files compressed with HDF5 filter plugins (bitshuffle, LZ4, Blosc, as in
+PAL-XFEL and Eiger data) open without `hdf5plugin`.
 
 ## Install
 
@@ -46,6 +48,7 @@ h5explore explore data.h5 --summary       # summary only
 h5explore explore data.h5 --max-depth 2   # limit the depth
 h5explore explore data.h5 --no-attrs      # hide attributes
 h5explore datasets data.h5 --top 20       # table of the largest datasets
+h5explore dump data.h5                    # every group, dataset and attribute as plain lines, root included
 h5explore export data.h5 --output analysis.xlsx                  # Excel (default)
 h5explore export data.h5 --format json --output structure.json   # JSON
 h5explore batch ./files --output-dir ./reports --recursive       # report for every HDF5 file in a folder

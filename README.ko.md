@@ -6,6 +6,8 @@ HDF5 파일의 구조와 메타데이터를 파이썬이나 명령줄에서 탐�
 
 h5py로 HDF5 파일을 읽어 그룹, 데이터셋, 속성을 pandas DataFrame으로 주고, Rich로 트리와 표를 출력하며,
 Excel이나 JSON으로 내보냅니다.
+메타데이터만 읽으므로 HDF5 필터 플러그인(bitshuffle, LZ4, Blosc 등, PAL-XFEL·Eiger 데이터)으로 압축된 파일도
+`hdf5plugin` 없이 열립니다.
 
 ## 설치
 
@@ -46,6 +48,7 @@ h5explore explore data.h5 --summary       # 요약만
 h5explore explore data.h5 --max-depth 2   # 깊이 제한
 h5explore explore data.h5 --no-attrs      # 속성 숨기기
 h5explore datasets data.h5 --top 20       # 큰 데이터셋 표
+h5explore dump data.h5                    # 모든 그룹·데이터셋·속성을 한 줄씩 평문으로 (루트 포함)
 h5explore export data.h5 --output analysis.xlsx                  # Excel (기본값)
 h5explore export data.h5 --format json --output structure.json   # JSON
 h5explore batch ./files --output-dir ./reports --recursive       # 폴더의 HDF5 파일 전부 리포트
