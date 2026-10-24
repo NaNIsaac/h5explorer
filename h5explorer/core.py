@@ -224,7 +224,7 @@ class H5Explorer:
             structure_df = structure_df[structure_df["depth"] <= max_depth]
 
         # 루트 트리 생성
-        tree = Tree(f"📁 {self.filepath.name}", style="bold blue")
+        tree = Tree(self.filepath.name, style="bold blue")
         path_to_node = {"": tree}
 
         # 깊이 순으로 정렬
@@ -236,21 +236,19 @@ class H5Explorer:
 
             # 노드 텍스트 구성
             if row["type"] == "Dataset":
-                icon = "📊"
                 shape_str = (
                     f"({', '.join(map(str, row['shape']))})" if row["shape"] else ""
                 )
                 size_str = f" [{row['size_mb']:.2f}MB]" if row["size_mb"] > 0.01 else ""
-                node_text = f"{icon} {row['name']} {shape_str}{size_str}"
+                node_text = f"{row['name']} {shape_str}{size_str}".rstrip()
                 style = "green"
             else:
-                icon = "📁"
-                node_text = f"{icon} {row['name']}/"
+                node_text = f"{row['name']}/"
                 style = "blue"
 
             # 속성 정보 추가
             if show_attrs and row["attr_count"] > 0:
-                node_text += f" 🏷️ {row['attr_count']} attrs"
+                node_text += f" ({row['attr_count']} attrs)"
 
             new_node = parent_node.add(node_text, style=style)
             path_to_node[row["path"]] = new_node
@@ -263,10 +261,10 @@ class H5Explorer:
 
         # 메인 정보 패널
         main_info = f"""
-📁 File: {summary['file_path']}
-💾 Size: {summary['file_size_mb']:.2f} MB
-📊 Data Size: {summary['total_data_size_mb']:.2f} MB
-🔍 Max Depth: {summary['max_depth']}
+File: {summary['file_path']}
+Size: {summary['file_size_mb']:.2f} MB
+Data Size: {summary['total_data_size_mb']:.2f} MB
+Max Depth: {summary['max_depth']}
         """
 
         # 통계 테이블
@@ -287,17 +285,22 @@ class H5Explorer:
 
         # 가장 큰 데이터셋 정보
         if summary["largest_dataset"]:
-            largest_info = f"🎯 Largest Dataset: {summary['largest_dataset']} ({summary['largest_dataset_size_mb']:.2f} MB)"
+            largest_info = f"Largest Dataset: {summary['largest_dataset']} ({summary['largest_dataset_size_mb']:.2f} MB)"
             self.console.print(
                 Panel(largest_info, title="Largest Dataset", border_style="yellow")
             )
 
-    def show_datasets_table(self, top_n: int | None = None):
-        """데이터셋 정보를 테이블로 출력"""
+    def show_datasets_table(self, top_n: int | None = None, sort_by: str = "size"):
+        """데이터셋 정보를 테이블로 출력 (sort_by: size, name, elements)"""
         datasets_df = self.get_datasets_info()
 
+        if sort_by == "name":
+            datasets_df = datasets_df.sort_values("path")
+        else:
+            column = {"size": "size_mb", "elements": "elements"}[sort_by]
+            datasets_df = datasets_df.sort_values(column, ascending=False)
         if top_n:
-            datasets_df = datasets_df.nlargest(top_n, "size_mb")
+            datasets_df = datasets_df.head(top_n)
 
         table = Table(title="Datasets Information", box=box.ROUNDED)
         table.add_column("Path", style="cyan")
@@ -310,7 +313,7 @@ class H5Explorer:
         for _, row in datasets_df.iterrows():
             shape_str = str(row["shape"]) if row["shape"] else "N/A"
             size_str = f"{row['size_mb']:.3f}"
-            compression_str = str(row["compression"]) if row["compression"] else "None"
+            compression_str = str(row["compression"]) if pd.notna(row["compression"]) else "None"
 
             table.add_row(
                 row["path"],
@@ -350,7 +353,7 @@ class H5Explorer:
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False, default=str)
 
-        self.console.print(f"✅ JSON 파일로 내보내기 완료: {output_path}")
+        self.console.print(f"JSON 파일로 내보내기 완료: {output_path}")
 
 
 # 사용 예시

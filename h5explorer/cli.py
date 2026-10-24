@@ -31,7 +31,7 @@ class H5Batch:
                 self.explorers[str(filepath)] = explorer
 
             except Exception as e:
-                print(f"⚠️  {filepath} 처리 중 오류: {e}")
+                print(f"{filepath} 처리 중 오류: {e}")
                 continue
 
         return pd.DataFrame(batch_data)
@@ -59,31 +59,34 @@ class H5Batch:
 
         return pd.DataFrame(comparison_data)
 
-    def export_batch_report(self, output_dir: str):
+    def export_batch_report(self, output_dir: str | Path):
         """배치 처리 결과를 디렉토리에 저장"""
         output_dir = Path(output_dir)
-        output_dir.mkdir(exist_ok=True)
+        output_dir.mkdir(parents=True, exist_ok=True)
 
         # 전체 요약
         summary_df = self.scan_all()
         summary_df.to_excel(output_dir / "batch_summary.xlsx", index=False)
 
-        # 파일별 상세 정보
+        # 파일별 상세 정보. 폴더가 달라도 stem이 같으면 번호를 붙여 덮어쓰지 않는다.
+        used: dict[str, int] = {}
         for filepath, explorer in self.explorers.items():
-            filename = Path(filepath).stem
+            stem = Path(filepath).stem
+            used[stem] = used.get(stem, 0) + 1
+            filename = stem if used[stem] == 1 else f"{stem}_{used[stem]}"
             try:
                 explorer.export_to_excel(output_dir / f"{filename}_detail.xlsx")
                 explorer.export_structure_json(
                     output_dir / f"{filename}_structure.json"
                 )
             except Exception as e:
-                print(f"⚠️  {filename} 내보내기 중 오류: {e}")
+                print(f"{filename} 내보내기 중 오류: {e}")
 
         # 비교 리포트
         comparison_df = self.compare_files()
         comparison_df.to_excel(output_dir / "files_comparison.xlsx", index=False)
 
-        print(f"✅ 배치 리포트 생성 완료: {output_dir}")
+        print(f"배치 리포트 생성 완료: {output_dir}")
 
 
 def find_hdf5_files(directory: str, recursive: bool = True) -> List[str]:
@@ -105,7 +108,7 @@ def find_hdf5_files(directory: str, recursive: bool = True) -> List[str]:
 @click.group()
 @click.version_option()
 def cli():
-    """🔍 H5Explorer - HDF5 파일 구조 탐색 도구"""
+    """H5Explorer - HDF5 파일 구조 탐색 도구"""
     pass
 
 
@@ -125,7 +128,7 @@ def explore(filepath, max_depth, no_attrs, summary):
             explorer.show_tree(max_depth=max_depth, show_attrs=not no_attrs)
 
     except Exception as e:
-        click.echo(f"❌ 오류: {e}", err=True)
+        click.echo(f"오류: {e}", err=True)
         sys.exit(1)
 
 
@@ -142,21 +145,10 @@ def datasets(filepath, top, sort_by):
     """데이터셋 정보 테이블 출력"""
     try:
         explorer = H5Explorer(filepath)
-
-        if sort_by == "size":
-            explorer.show_datasets_table(top_n=top)
-        else:
-            datasets_df = explorer.get_datasets_info()
-            if sort_by == "name":
-                datasets_df = datasets_df.sort_values("name").head(top)
-            elif sort_by == "elements":
-                datasets_df = datasets_df.nlargest(top, "elements")
-
-            # 테이블 직접 출력 (show_datasets_table 메서드 수정 필요)
-            explorer.show_datasets_table()
+        explorer.show_datasets_table(top_n=top, sort_by=sort_by)
 
     except Exception as e:
-        click.echo(f"❌ 오류: {e}", err=True)
+        click.echo(f"오류: {e}", err=True)
         sys.exit(1)
 
 
@@ -181,7 +173,7 @@ def export(filepath, output, output_format):
             explorer.export_structure_json(output)
 
     except Exception as e:
-        click.echo(f"❌ 오류: {e}", err=True)
+        click.echo(f"오류: {e}", err=True)
         sys.exit(1)
 
 
@@ -195,16 +187,16 @@ def batch(directory, output_dir, recursive):
         hdf5_files = find_hdf5_files(directory, recursive)
 
         if not hdf5_files:
-            click.echo("❌ HDF5 파일을 찾을 수 없습니다.")
+            click.echo("HDF5 파일을 찾을 수 없습니다.")
             return
 
-        click.echo(f"🔍 {len(hdf5_files)}개의 HDF5 파일을 발견했습니다.")
+        click.echo(f"{len(hdf5_files)}개의 HDF5 파일을 발견했습니다.")
 
         batch_processor = H5Batch(hdf5_files)
         batch_processor.export_batch_report(output_dir)
 
     except Exception as e:
-        click.echo(f"❌ 오류: {e}", err=True)
+        click.echo(f"오류: {e}", err=True)
         sys.exit(1)
 
 
@@ -218,7 +210,7 @@ def compare(filepaths):
         # 요약 비교
         summary_df = batch_processor.scan_all()
 
-        click.echo("\n📊 파일 요약 비교:")
+        click.echo("\n파일 요약 비교:")
         click.echo(
             summary_df[
                 [
@@ -239,14 +231,14 @@ def compare(filepaths):
         common_paths = common_paths[common_paths == len(filepaths)]
 
         if len(common_paths) > 0:
-            click.echo(f"\n🔄 공통 데이터셋 ({len(common_paths)}개):")
+            click.echo(f"\n공통 데이터셋 ({len(common_paths)}개):")
             for path in common_paths.index[:10]:  # 상위 10개만 표시
                 click.echo(f"  • {path}")
         else:
-            click.echo("\n❌ 공통 데이터셋이 없습니다.")
+            click.echo("\n공통 데이터셋이 없습니다.")
 
     except Exception as e:
-        click.echo(f"❌ 오류: {e}", err=True)
+        click.echo(f"오류: {e}", err=True)
         sys.exit(1)
 
 
@@ -258,13 +250,13 @@ def find(directory, recursive):
     hdf5_files = find_hdf5_files(directory, recursive)
 
     if hdf5_files:
-        click.echo(f"🔍 {len(hdf5_files)}개의 HDF5 파일을 발견했습니다:")
+        click.echo(f"{len(hdf5_files)}개의 HDF5 파일을 발견했습니다:")
         for file in sorted(hdf5_files):
             file_path = Path(file)
             file_size = file_path.stat().st_size / (1024 * 1024)  # MB
-            click.echo(f"  📁 {file} ({file_size:.2f} MB)")
+            click.echo(f"  {file} ({file_size:.2f} MB)")
     else:
-        click.echo("❌ HDF5 파일을 찾을 수 없습니다.")
+        click.echo("HDF5 파일을 찾을 수 없습니다.")
 
 
 if __name__ == "__main__":
