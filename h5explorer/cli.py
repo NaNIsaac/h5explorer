@@ -1,6 +1,4 @@
-"""
-H5Explorer CLI 인터페이스 및 추가 유틸리티 함수들
-"""
+"""Command-line interface and helper functions for H5Explorer."""
 from typing import List
 from pathlib import Path
 import sys
@@ -12,14 +10,14 @@ from h5explorer.core import H5Explorer
 
 
 class H5Batch:
-    """여러 HDF5 파일을 배치로 처리하는 클래스"""
+    """Scan, compare and report on several HDF5 files."""
 
     def __init__(self, file_paths: List[str]):
         self.file_paths = [Path(p) for p in file_paths]
         self.explorers = {}
 
     def scan_all(self) -> pd.DataFrame:
-        """모든 파일의 요약 정보를 DataFrame으로 반환"""
+        """One summary row per file."""
         batch_data = []
 
         for filepath in self.file_paths:
@@ -37,7 +35,7 @@ class H5Batch:
         return pd.DataFrame(batch_data)
 
     def compare_files(self) -> pd.DataFrame:
-        """파일들의 구조를 비교"""
+        """One row per dataset per file, for comparing structures."""
         comparison_data = []
 
         for filepath in self.file_paths:
@@ -60,15 +58,13 @@ class H5Batch:
         return pd.DataFrame(comparison_data)
 
     def export_batch_report(self, output_dir: str | Path):
-        """배치 처리 결과를 디렉토리에 저장"""
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # 전체 요약
         summary_df = self.scan_all()
         summary_df.to_excel(output_dir / "batch_summary.xlsx", index=False)
 
-        # 파일별 상세 정보. 폴더가 달라도 stem이 같으면 번호를 붙여 덮어쓰지 않는다.
+        # Files from different folders can share a stem; number them so reports are not overwritten.
         used: dict[str, int] = {}
         for filepath, explorer in self.explorers.items():
             stem = Path(filepath).stem
@@ -82,7 +78,6 @@ class H5Batch:
             except Exception as e:
                 print(f"{filename} 내보내기 중 오류: {e}")
 
-        # 비교 리포트
         comparison_df = self.compare_files()
         comparison_df.to_excel(output_dir / "files_comparison.xlsx", index=False)
 
@@ -90,7 +85,6 @@ class H5Batch:
 
 
 def find_hdf5_files(directory: str, recursive: bool = True) -> List[str]:
-    """디렉토리에서 HDF5 파일들을 찾기"""
     directory = Path(directory)
 
     if recursive:
@@ -104,11 +98,10 @@ def find_hdf5_files(directory: str, recursive: bool = True) -> List[str]:
     return [str(f) for f in hdf5_files]
 
 
-# CLI 명령어 정의
 @click.group()
 @click.version_option()
 def cli():
-    """H5Explorer - HDF5 파일 구조 탐색 도구"""
+    """H5Explorer - tool for exploring the structure of HDF5 files"""
     pass
 
 
@@ -118,7 +111,7 @@ def cli():
 @click.option("--no-attrs", is_flag=True, help="속성 정보 숨기기")
 @click.option("--summary", "-s", is_flag=True, help="요약 정보만 표시")
 def explore(filepath, max_depth, no_attrs, summary):
-    """HDF5 파일 구조 탐색"""
+    """Explore the structure of an HDF5 file"""
     try:
         explorer = H5Explorer(filepath)
 
@@ -142,7 +135,7 @@ def explore(filepath, max_depth, no_attrs, summary):
     help="정렬 기준",
 )
 def datasets(filepath, top, sort_by):
-    """데이터셋 정보 테이블 출력"""
+    """Print a table of dataset information"""
     try:
         explorer = H5Explorer(filepath)
         explorer.show_datasets_table(top_n=top, sort_by=sort_by)
@@ -155,7 +148,7 @@ def datasets(filepath, top, sort_by):
 @cli.command()
 @click.argument("filepath", type=click.Path(exists=True))
 def dump(filepath):
-    """모든 그룹·데이터셋과 속성을 한 줄씩 평문으로 출력 (루트 속성 포함)"""
+    """Print every group, dataset and attribute as plain text, one per line (including root attributes)"""
     try:
         for line in H5Explorer(filepath).dump_lines():
             click.echo(line)
@@ -176,7 +169,7 @@ def dump(filepath):
     help="출력 형식",
 )
 def export(filepath, output, output_format):
-    """구조 정보를 파일로 내보내기"""
+    """Export structure information to a file"""
     try:
         explorer = H5Explorer(filepath)
 
@@ -195,7 +188,7 @@ def export(filepath, output, output_format):
 @click.option("--output-dir", "-o", required=True, help="출력 디렉토리")
 @click.option("--recursive", "-r", is_flag=True, help="하위 디렉토리 포함")
 def batch(directory, output_dir, recursive):
-    """디렉토리의 모든 HDF5 파일을 배치 처리"""
+    """Process every HDF5 file in a directory as a batch"""
     try:
         hdf5_files = find_hdf5_files(directory, recursive)
 
@@ -216,11 +209,10 @@ def batch(directory, output_dir, recursive):
 @cli.command()
 @click.argument("filepaths", nargs=-1, required=True, type=click.Path(exists=True))
 def compare(filepaths):
-    """여러 HDF5 파일 구조 비교"""
+    """Compare the structure of several HDF5 files"""
     try:
         batch_processor = H5Batch(filepaths)
 
-        # 요약 비교
         summary_df = batch_processor.scan_all()
 
         click.echo("\n파일 요약 비교:")
@@ -236,16 +228,14 @@ def compare(filepaths):
             ].to_string(index=False)
         )
 
-        # 구조 비교
         comparison_df = batch_processor.compare_files()
 
-        # 공통 데이터셋 찾기
         common_paths = comparison_df.groupby("dataset_path").size()
         common_paths = common_paths[common_paths == len(filepaths)]
 
         if len(common_paths) > 0:
             click.echo(f"\n공통 데이터셋 ({len(common_paths)}개):")
-            for path in common_paths.index[:10]:  # 상위 10개만 표시
+            for path in common_paths.index[:10]:
                 click.echo(f"  • {path}")
         else:
             click.echo("\n공통 데이터셋이 없습니다.")
@@ -259,7 +249,7 @@ def compare(filepaths):
 @click.argument("directory", type=click.Path(exists=True, file_okay=False))
 @click.option("--recursive", "-r", is_flag=True, help="하위 디렉토리 포함")
 def find(directory, recursive):
-    """디렉토리에서 HDF5 파일 찾기"""
+    """Find HDF5 files in a directory"""
     hdf5_files = find_hdf5_files(directory, recursive)
 
     if hdf5_files:
@@ -276,20 +266,16 @@ if __name__ == "__main__":
     cli()
 
 
-# 추가 유틸리티 함수들
 def quick_summary(filepath: str) -> dict:
-    """빠른 요약 정보 반환 (CLI에서 사용)"""
     explorer = H5Explorer(filepath)
     return explorer.get_file_summary()
 
 
 def get_dataset_paths(filepath: str, filter_by: str = None) -> List[str]:
-    """데이터셋 경로 리스트 반환"""
     explorer = H5Explorer(filepath)
     datasets_df = explorer.get_datasets_info()
 
     if filter_by:
-        # 간단한 필터링 (경로에 특정 문자열 포함)
         datasets_df = datasets_df[
             datasets_df["path"].str.contains(filter_by, case=False)
         ]
@@ -298,7 +284,7 @@ def get_dataset_paths(filepath: str, filter_by: str = None) -> List[str]:
 
 
 def find_large_datasets(filepath: str, min_size_mb: float = 10.0) -> pd.DataFrame:
-    """큰 데이터셋 찾기"""
+    """Datasets of at least min_size_mb, largest first."""
     explorer = H5Explorer(filepath)
     datasets_df = explorer.get_datasets_info()
     return datasets_df[datasets_df["size_mb"] >= min_size_mb].sort_values(
@@ -307,11 +293,10 @@ def find_large_datasets(filepath: str, min_size_mb: float = 10.0) -> pd.DataFram
 
 
 def analyze_compression_efficiency(filepath: str) -> pd.DataFrame:
-    """압축 효율성 분석"""
+    """One-row DataFrame of compressed and uncompressed dataset counts and sizes."""
     explorer = H5Explorer(filepath)
     datasets_df = explorer.get_datasets_info()
 
-    # 압축된 것과 안 된 것 비교
     compressed = datasets_df[datasets_df["compression"].notna()]
     uncompressed = datasets_df[datasets_df["compression"].isna()]
 

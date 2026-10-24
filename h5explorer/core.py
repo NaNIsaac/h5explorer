@@ -1,7 +1,4 @@
-"""
-H5Explorer - HDF5 파일 구조 탐색 및 메타데이터 추출 도구
-pandas DataFrame 기반으로 구조화된 정보 제공
-"""
+"""Explore the structure of HDF5 files and extract their metadata as pandas DataFrames."""
 
 from pathlib import Path
 import json
@@ -17,13 +14,13 @@ from rich import box
 
 
 def _excel_cell(value: Any) -> Any:
-    """Excel 셀에 쓸 수 없는 tuple, list, dict, ndarray는 문자열로 바꿈"""
+    """Excel cells cannot hold a tuple, list, dict or ndarray, so convert them to str."""
     if isinstance(value, tuple | list | dict | np.ndarray):
         return str(value)
     return value
 
 
-# 플러그인 필터 id와 이름. hdf5plugin 7.1의 hdf5plugin.FILTERS를 뒤집은 표 (tests가 일치를 확인)
+# Plugin filter id to name: hdf5plugin.FILTERS of hdf5plugin 7.1, inverted (tests check they agree).
 PLUGIN_FILTERS = {
     307: "bzip2",
     32001: "blosc",
@@ -41,21 +38,22 @@ PLUGIN_FILTERS = {
 
 
 def compression_name(dataset: h5py.Dataset) -> str | None:
-    """압축 필터 이름. h5py가 아는 필터(gzip, lzf, szip)는 그 이름, 플러그인 필터는 표의 이름
+    """Compression filter name: h5py's own name for gzip, lzf and szip, the PLUGIN_FILTERS name for plugin filters.
 
-    h5py는 플러그인 필터를 모두 "unknown"으로 돌려주므로 필터 파이프라인의 id를 직접 읽는다.
-    표에 없는 id는 "filter <id>", 여럿이면 "+"로 잇는다. 압축이 없으면 None.
+    h5py reports every plugin filter as "unknown", so the ids are read from the filter pipeline.
+    An id missing from the table gives "filter <id>", several filters are joined with "+".
+    None when the dataset is not compressed.
     """
     if dataset.compression != "unknown":
         return dataset.compression
     plist = dataset.id.get_create_plist()
     codes = [plist.get_filter(i)[0] for i in range(plist.get_nfilters())]
-    # id 256 미만은 HDF5 내장 필터(deflate, shuffle, fletcher32 등)
+    # Ids below 256 are HDF5 built-in filters (deflate, shuffle, fletcher32, ...).
     return "+".join(PLUGIN_FILTERS.get(c, f"filter {c}") for c in codes if c >= 256) or "unknown"
 
 
 class H5Explorer:
-    """HDF5 파일 탐색 및 메타데이터 추출 클래스"""
+    """Explore an HDF5 file and extract its metadata."""
 
     def __init__(self, filepath: str | Path):
         self.filepath = Path(filepath)
@@ -69,7 +67,7 @@ class H5Explorer:
             raise FileNotFoundError(f"HDF5 파일을 찾을 수 없습니다: {filepath}")
 
     def scan_structure(self) -> pd.DataFrame:
-        """HDF5 파일 전체 구조를 DataFrame으로 반환"""
+        """One row per object (root, groups, datasets); cached."""
         if self._structure_df is not None:
             return self._structure_df
 
@@ -95,7 +93,6 @@ class H5Explorer:
             else:
                 return
 
-            # 속성 개수
             attr_count = len(obj.attrs)
 
             structure_data.append(
@@ -115,7 +112,7 @@ class H5Explorer:
             )
 
         with h5py.File(self.filepath, "r") as f:
-            # 루트 그룹 추가
+            # visititems does not visit the root group.
             visitor("", f)
             f.visititems(visitor)
 
@@ -123,14 +120,12 @@ class H5Explorer:
         return self._structure_df
 
     def get_datasets_info(self) -> pd.DataFrame:
-        """데이터셋 정보만 추출"""
         if self._datasets_df is not None:
             return self._datasets_df
 
         structure_df = self.scan_structure()
         self._datasets_df = structure_df[structure_df["type"] == "Dataset"].copy()
 
-        # 추가 정보 계산
         self._datasets_df["elements"] = self._datasets_df["shape"].apply(
             lambda x: np.prod(x) if x is not None else 0
         )
@@ -141,14 +136,12 @@ class H5Explorer:
         return self._datasets_df
 
     def get_groups_info(self) -> pd.DataFrame:
-        """그룹 정보만 추출"""
         if self._groups_df is not None:
             return self._groups_df
 
         structure_df = self.scan_structure()
         groups_df = structure_df[structure_df["type"] == "Group"].copy()
 
-        # 각 그룹별 하위 아이템 개수 계산
         group_children = []
         for _, group in groups_df.iterrows():
             group_path = group["path"]
@@ -171,7 +164,6 @@ class H5Explorer:
         return self._groups_df
 
     def get_attributes_info(self) -> pd.DataFrame:
-        """모든 속성 정보를 DataFrame으로 추출"""
         if self._attributes_df is not None:
             return self._attributes_df
 
@@ -179,12 +171,10 @@ class H5Explorer:
 
         def extract_attrs(name, obj):
             for attr_name, attr_value in obj.attrs.items():
-                # 속성 값 타입과 크기 정보
                 if isinstance(attr_value, np.ndarray):
                     attr_type = f"array({attr_value.dtype})"
                     attr_shape = attr_value.shape
                     attr_size = attr_value.nbytes
-                    # 배열이 작으면 값 표시, 크면 요약
                     if attr_value.size <= 10:
                         attr_repr = str(attr_value.tolist())
                     else:
@@ -218,7 +208,6 @@ class H5Explorer:
         return self._attributes_df
 
     def get_file_summary(self) -> dict[str, Any]:
-        """파일 전체 요약 정보"""
         structure_df = self.scan_structure()
         datasets_df = self.get_datasets_info()
         groups_df = self.get_groups_info()
@@ -248,24 +237,21 @@ class H5Explorer:
         }
 
     def show_tree(self, max_depth: int | None = None, show_attrs: bool = True):
-        """Rich를 사용한 트리 구조 출력"""
         structure_df = self.scan_structure()
 
         if max_depth is not None:
             structure_df = structure_df[structure_df["depth"] <= max_depth]
 
-        # 루트 트리 생성
         tree = Tree(self.filepath.name, style="bold blue")
         path_to_node = {"": tree}
 
-        # 깊이 순으로 정렬
+        # Sort by depth so a parent node exists before its children.
         for _, row in structure_df.sort_values("depth").iterrows():
-            if row["path"] == "":  # 루트는 이미 추가됨
+            if row["path"] == "":  # the root is already the tree
                 continue
 
             parent_node = path_to_node.get(row["parent"], tree)
 
-            # 노드 텍스트 구성
             if row["type"] == "Dataset":
                 shape_str = (
                     f"({', '.join(map(str, row['shape']))})" if row["shape"] else ""
@@ -277,7 +263,6 @@ class H5Explorer:
                 node_text = f"{row['name']}/"
                 style = "blue"
 
-            # 속성 정보 추가
             if show_attrs and row["attr_count"] > 0:
                 node_text += f" ({row['attr_count']} attrs)"
 
@@ -287,10 +272,8 @@ class H5Explorer:
         self.console.print(tree)
 
     def show_summary(self):
-        """파일 요약 정보 출력"""
         summary = self.get_file_summary()
 
-        # 메인 정보 패널
         main_info = f"""
 File: {summary['file_path']}
 Size: {summary['file_size_mb']:.2f} MB
@@ -298,7 +281,6 @@ Data Size: {summary['total_data_size_mb']:.2f} MB
 Max Depth: {summary['max_depth']}
         """
 
-        # 통계 테이블
         stats_table = Table(title="Structure Statistics", box=box.ROUNDED)
         stats_table.add_column("Type", style="cyan")
         stats_table.add_column("Count", justify="right", style="magenta")
@@ -314,7 +296,6 @@ Max Depth: {summary['max_depth']}
         )
         self.console.print(stats_table)
 
-        # 가장 큰 데이터셋 정보
         if summary["largest_dataset"]:
             largest_info = f"Largest Dataset: {summary['largest_dataset']} ({summary['largest_dataset_size_mb']:.2f} MB)"
             self.console.print(
@@ -322,7 +303,7 @@ Max Depth: {summary['max_depth']}
             )
 
     def show_datasets_table(self, top_n: int | None = None, sort_by: str = "size"):
-        """데이터셋 정보를 테이블로 출력 (sort_by: size, name, elements)"""
+        """Print a table of datasets; sort_by is size, name or elements."""
         datasets_df = self.get_datasets_info()
 
         if sort_by == "name":
@@ -358,7 +339,7 @@ Max Depth: {summary['max_depth']}
         self.console.print(table)
 
     def export_to_excel(self, output_path: str | Path):
-        """요약, 데이터셋, 그룹, 속성 정보를 시트별로 Excel에 저장"""
+        """Write summary, datasets, groups and attributes to one Excel sheet each."""
         sheets = {
             "Summary": pd.DataFrame(
                 self.get_file_summary().items(), columns=["key", "value"]
@@ -372,7 +353,6 @@ Max Depth: {summary['max_depth']}
                 df.map(_excel_cell).to_excel(writer, sheet_name=name, index=False)
 
     def export_structure_json(self, output_path: str):
-        """구조 정보를 JSON으로 내보내기"""
         data = {
             "summary": self.get_file_summary(),
             "structure": self.scan_structure().to_dict("records"),
@@ -387,9 +367,9 @@ Max Depth: {summary['max_depth']}
         self.console.print(f"JSON 파일로 내보내기 완료: {output_path}")
 
     def dump_lines(self) -> list[str]:
-        """grep하기 쉬운 평문 목록: 그룹은 "이름/", 데이터셋은 "이름  shape dtype", 속성은 "    @키 = 값"
+        """Plain-text lines that are easy to grep: groups as "name/", datasets as "name  shape dtype", attributes as "    @key = value"
 
-        루트 그룹("/")과 그 속성을 맨 앞에 둔다 (visititems는 루트를 방문하지 않음).
+        The root group ("/") and its attributes come first (visititems does not visit the root).
         """
         lines = []
 
@@ -407,23 +387,16 @@ Max Depth: {summary['max_depth']}
         return lines
 
 
-# 사용 예시
 if __name__ == "__main__":
-    # 예시 사용법
     explorer = H5Explorer(r"X:\XRR_AI\hdf5_XRR\xrr_data.h5")
 
-    # 요약 정보 출력
     explorer.show_summary()
 
-    # 트리 구조 출력
     explorer.show_tree(max_depth=3)
 
-    # 데이터셋 테이블 출력 (큰 것부터 10개)
     explorer.show_datasets_table(top_n=10)
 
-    # pandas DataFrame으로 데이터 가져오기
     datasets_df = explorer.get_datasets_info()
     attributes_df = explorer.get_attributes_info()
 
-    # 내보내기
     explorer.export_structure_json("hdf5_structure.json")
