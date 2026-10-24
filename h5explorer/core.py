@@ -386,6 +386,26 @@ Max Depth: {summary['max_depth']}
 
         self.console.print(f"JSON 파일로 내보내기 완료: {output_path}")
 
+    def dump_lines(self) -> list[str]:
+        """grep하기 쉬운 평문 목록: 그룹은 "이름/", 데이터셋은 "이름  shape dtype", 속성은 "    @키 = 값"
+
+        루트 그룹("/")과 그 속성을 맨 앞에 둔다 (visititems는 루트를 방문하지 않음).
+        """
+        lines = []
+
+        def show(name, obj):
+            match obj:
+                case h5py.Dataset():
+                    lines.append(f"{name}  {obj.shape} {obj.dtype}")
+                case _:
+                    lines.append(f"{name}/")
+            lines.extend(f"    @{key} = {value}" for key, value in obj.attrs.items())
+
+        with h5py.File(self.filepath, "r") as f:
+            show("", f)
+            f.visititems(show)
+        return lines
+
 
 # 사용 예시
 if __name__ == "__main__":
