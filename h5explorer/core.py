@@ -23,6 +23,37 @@ def _excel_cell(value: Any) -> Any:
     return value
 
 
+# 플러그인 필터 id와 이름. hdf5plugin 7.1의 hdf5plugin.FILTERS를 뒤집은 표 (tests가 일치를 확인)
+PLUGIN_FILTERS = {
+    307: "bzip2",
+    32001: "blosc",
+    32004: "lz4",
+    32008: "bshuf",
+    32013: "zfp",
+    32015: "zstd",
+    32017: "sz",
+    32018: "fcidecomp",
+    32024: "sz3",
+    32026: "blosc2",
+    32028: "sperr",
+    32033: "htj2k",
+}
+
+
+def compression_name(dataset: h5py.Dataset) -> str | None:
+    """압축 필터 이름. h5py가 아는 필터(gzip, lzf, szip)는 그 이름, 플러그인 필터는 표의 이름
+
+    h5py는 플러그인 필터를 모두 "unknown"으로 돌려주므로 필터 파이프라인의 id를 직접 읽는다.
+    표에 없는 id는 "filter <id>", 여럿이면 "+"로 잇는다. 압축이 없으면 None.
+    """
+    if dataset.compression != "unknown":
+        return dataset.compression
+    plist = dataset.id.get_create_plist()
+    codes = [plist.get_filter(i)[0] for i in range(plist.get_nfilters())]
+    # id 256 미만은 HDF5 내장 필터(deflate, shuffle, fletcher32 등)
+    return "+".join(PLUGIN_FILTERS.get(c, f"filter {c}") for c in codes if c >= 256) or "unknown"
+
+
 class H5Explorer:
     """HDF5 파일 탐색 및 메타데이터 추출 클래스"""
 
@@ -60,7 +91,7 @@ class H5Explorer:
                 shape = obj.shape
                 dtype = str(obj.dtype)
                 size_bytes = obj.nbytes
-                compression = obj.compression
+                compression = compression_name(obj)
             else:
                 return
 
