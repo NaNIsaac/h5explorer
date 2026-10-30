@@ -4,6 +4,10 @@
 
 HDF5 파일의 구조와 메타데이터를 파이썬이나 명령줄에서 탐색합니다.
 
+![HDF5 파일 구조에서 명령줄 탐색과 Excel 내보내기까지의 흐름도](docs/media/readme-workflow.svg)
+
+*실제 터미널 캡처가 아닌 개념도입니다. 설치 아래의 생성 샘플로 같은 과정을 따라 할 수 있습니다.*
+
 h5py로 HDF5 파일을 읽어 그룹, 데이터셋, 속성을 pandas DataFrame으로 주고, Rich로 트리와 표를 출력하며,
 Excel이나 JSON으로 내보냅니다.
 메타데이터만 읽으므로 HDF5 필터 플러그인(bitshuffle, LZ4, Blosc 등, PAL-XFEL·Eiger 데이터)으로 압축된 파일도
