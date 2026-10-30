@@ -9,6 +9,14 @@ prints them as a tree and tables with Rich, and exports them to Excel or JSON.
 Only metadata is read, so files compressed with HDF5 filter plugins (bitshuffle, LZ4, Blosc, as in
 PAL-XFEL and Eiger data) open without `hdf5plugin`.
 
+## Visual overview
+
+![HDF5 groups, dataset shapes and attributes can be inspected without loading measurement arrays.](docs/media/readme-overview.svg)
+
+HDF5 groups, dataset shapes and attributes can be inspected without loading measurement arrays.
+
+Quickest path: run `h5tree sample.h5` after creating the sample in [Install](#install), then try `h5explore export sample.h5 --output sample.xlsx`.
+
 ## Install
 
 Python 3.10 or later, [uv](https://docs.astral.sh/uv/). The package is not on PyPI; install it from a clone:
