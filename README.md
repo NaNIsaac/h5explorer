@@ -4,6 +4,10 @@ English · [한국어](README.ko.md)
 
 Explore the structure and metadata of HDF5 files from Python or the command line.
 
+![Workflow diagram showing source inputs, inspection steps and output files](docs/media/readme-workflow.svg)
+
+*Illustrative workflow (not a captured run). Follow the commands below to reproduce it.*
+
 It reads an HDF5 file with h5py and gives you the groups, datasets and attributes as pandas DataFrames,
 prints them as a tree and tables with Rich, and exports them to Excel or JSON.
 Only metadata is read, so files compressed with HDF5 filter plugins (bitshuffle, LZ4, Blosc, as in
