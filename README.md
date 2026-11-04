@@ -15,7 +15,24 @@ PAL-XFEL and Eiger data) open without `hdf5plugin`.
 
 ## Install
 
-Python 3.10 or later, [uv](https://docs.astral.sh/uv/). The package is not on PyPI; install it from a clone:
+One line, nothing needed beforehand: the script installs [uv](https://docs.astral.sh/uv/) if it is
+missing, and uv fetches a Python. Windows (cmd or PowerShell):
+
+```powershell
+powershell -ExecutionPolicy Bypass -c "irm -useb https://raw.githubusercontent.com/NaNIsaac/h5explorer/main/install.ps1 | iex"
+```
+
+macOS and Linux:
+
+```sh
+curl -LsSf https://raw.githubusercontent.com/NaNIsaac/h5explorer/main/install.sh | sh
+```
+
+It runs `uv tool install h5explorer` and puts uv's command folder on `PATH` for new terminals.
+The package is the main branch as a source archive, so git is not needed.
+Run the same line again to update.
+
+To work from a clone instead: Python 3.10 or later and [uv](https://docs.astral.sh/uv/).
 
 ```sh
 git clone https://github.com/NaNIsaac/h5explorer.git
