@@ -303,7 +303,7 @@ def analyze_compression_efficiency(filepath: str) -> pd.DataFrame:
     analysis = {
         "total_datasets": len(datasets_df),
         "compressed_datasets": len(compressed),
-        "compression_ratio": len(compressed) / len(datasets_df) * 100,
+        "compression_ratio": (len(compressed) / len(datasets_df) * 100 if len(datasets_df) else 0.0),
         "compressed_size_mb": compressed["size_mb"].sum(),
         "uncompressed_size_mb": uncompressed["size_mb"].sum(),
         "total_size_mb": datasets_df["size_mb"].sum(),
